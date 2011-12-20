@@ -1,0 +1,121 @@
+diff -r 55e92368bcd7 -r 8bfcef66bb82 doc/reference.conf
+--- a/doc/reference.conf	Fri Nov 19 22:55:54 2010 -0500
++++ b/doc/reference.conf	Fri Nov 19 23:22:24 2010 -0500
+@@ -772,7 +772,7 @@
+ 
+ 	/* exemptchanops: Channel modes that any form of channel ops (+aoh) 
+ 	 * will be exempt from. Even if the mode is set, it will not apply to the
++	 * channel ops if it is listed in this option. Valid modes are cCDTNGK.
+-	 * channel ops if it is listed in this option. Valid modes are cCTNGK.
+ 	 */
+ 	exemptchanops = "NT";
+ 
+diff -r 55e92368bcd7 -r 8bfcef66bb82 help/opers/cmode
+--- a/help/opers/cmode	Fri Nov 19 22:55:54 2010 -0500
++++ b/help/opers/cmode	Fri Nov 19 23:22:24 2010 -0500
+@@ -30,8 +30,6 @@
+               (however, new forwards can still be set subject to +F).
+      +C     - Disable CTCP. All CTCP messages to the channel, except ACTION,
+               are disallowed.
++     +D     - Disable CTCP ACTION. All CTCP ACTIONs to the channel will
++              be blocked.
+      +T     - Disable notice. All notices to the channel are disallowed.
+      +N     - No nickchanges. People on the channel will not be able to
+               change nick.
+diff -r 55e92368bcd7 -r 8bfcef66bb82 help/users/cmode
+--- a/help/users/cmode	Fri Nov 19 22:55:54 2010 -0500
++++ b/help/users/cmode	Fri Nov 19 23:22:24 2010 -0500
+@@ -30,8 +30,6 @@
+               (however, new forwards can still be set subject to +F).
+      +C     - Disable CTCP. All CTCP messages to the channel, except ACTION,
+               are disallowed.
++     +D     - Disable CTCP ACTION. All CTCP ACTIONs to the channel will
++              be blocked.
+      +T     - Disable notice. All notices to the channel are disallowed.
+      +N     - No nickchanges. People on the channel will not be able to
+               change nick.
+diff -r 55e92368bcd7 -r 8bfcef66bb82 include/channel.h
+--- a/include/channel.h	Fri Nov 19 22:55:54 2010 -0500
++++ b/include/channel.h	Fri Nov 19 23:22:24 2010 -0500
+@@ -182,7 +182,6 @@
+ #define MODE_DISFORWARD 0x2000  /* disable channel forwarding */
+ #define MODE_NOCTCP     0x8000  /* Block CTCPs directed to this channel */
+ #define MODE_NONOTICE	0x10000	/* Block notices directed to this channel */
++#define MODE_NOACTION	0x20000 /* Block CTCP ACTION directed to this channel */
+ #define MODE_NONICK	0x80000 /* Disable /nick for anyone on this channel */
+ #define MODE_NOCAPS	0x100000 /* Block messages in all capital letters */
+ #define MODE_NOREJOIN	0x200000 /* Block rejoin immediately after kick */
+diff -r 55e92368bcd7 -r 8bfcef66bb82 include/s_conf.h
+--- a/include/s_conf.h	Fri Nov 19 22:55:54 2010 -0500
++++ b/include/s_conf.h	Fri Nov 19 23:22:24 2010 -0500
+@@ -268,7 +268,6 @@
+ 
+ 	int exempt_cmode_c;
+ 	int exempt_cmode_C;
++	int exempt_cmode_D;
+ 	int exempt_cmode_T;
+ 	int exempt_cmode_N;
+ 	int exempt_cmode_G;
+diff -r 55e92368bcd7 -r 8bfcef66bb82 modules/core/m_message.c
+--- a/modules/core/m_message.c	Fri Nov 19 22:55:54 2010 -0500
++++ b/modules/core/m_message.c	Fri Nov 19 23:22:24 2010 -0500
+@@ -568,13 +568,6 @@
+ 				sendto_one_numeric(source_p, 404, "%s :Cannot send to channel - Notices are disallowed (+T set)", chptr->chname);
+ 				return;
+ 			}
++			if (p_or_n != NOTICE && chptr->mode.mode & MODE_NOACTION &&
++					!strncasecmp(text + 1, "ACTION", 6) &&
++					(!ConfigChannel.exempt_cmode_D || !is_any_op(msptr)))
++			{
++				sendto_one_numeric(source_p, 404, "%s :Cannot send to channel - ACTIONs are disallowed (+D set)", chptr->chname);
++				return;
++			}
+ 			if (p_or_n != NOTICE && *text == '\001' &&
+ 					strncasecmp(text + 1, "ACTION ", 7))
+ 			{
+diff -r 55e92368bcd7 -r 8bfcef66bb82 src/chmode.c
+--- a/src/chmode.c	Fri Nov 19 22:55:54 2010 -0500
++++ b/src/chmode.c	Fri Nov 19 23:22:24 2010 -0500
+@@ -1852,7 +1852,7 @@
+   {chm_nosuch,	0 },			/* A */
+   {chm_nosuch,	0 },			/* B */
+   {chm_simple,	MODE_NOCTCP },		/* C */
++  {chm_simple,	MODE_NOACTION },	/* D */
+-  {chm_nosuch,	0 },			/* D */
+   {chm_nosuch,	0 },			/* E */
+   {chm_simple,	MODE_FREETARGET },	/* F */
+   {chm_simple,	MODE_NOCAPS },		/* G */
+diff -r 55e92368bcd7 -r 8bfcef66bb82 src/newconf.c
+--- a/src/newconf.c	Fri Nov 19 22:55:54 2010 -0500
++++ b/src/newconf.c	Fri Nov 19 23:22:24 2010 -0500
+@@ -2314,7 +2314,6 @@
+ 	{ "caps_threshold",	CF_INT,   conf_set_channel_caps_threshold, 0, NULL	},
+ 	{ "exempt_cmode_c",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_c	},
+ 	{ "exempt_cmode_C",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_C	},
++	{ "exempt_cmode_D",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_D	},
+ 	{ "exempt_cmode_T",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_T	},
+ 	{ "exempt_cmode_N",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_N	},
+ 	{ "exempt_cmode_G",	CF_YESNO, NULL, 0, &ConfigChannel.exempt_cmode_G	},
+diff -r 55e92368bcd7 -r 8bfcef66bb82 src/s_conf.c
+--- a/src/s_conf.c	Fri Nov 19 22:55:54 2010 -0500
++++ b/src/s_conf.c	Fri Nov 19 23:22:24 2010 -0500
+@@ -797,7 +797,6 @@
+ 
+ 	ConfigChannel.exempt_cmode_c = NO;
+ 	ConfigChannel.exempt_cmode_C = NO;
++	ConfigChannel.exempt_cmode_D = NO;
+ 	ConfigChannel.exempt_cmode_T = NO;
+ 	ConfigChannel.exempt_cmode_N = NO;
+ 	ConfigChannel.exempt_cmode_G = NO;
+@@ -922,11 +921,6 @@
+ 			ConfigChannel.exempt_cmode_C = 1;
+ 			continue;
+ 		}
++		if(*ech == 'D')
++		{
++			ConfigChannel.exempt_cmode_D = 1;
++			continue;
++		}
+ 		if(*ech == 'T')
+ 		{
+ 			ConfigChannel.exempt_cmode_T = 1;

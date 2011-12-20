@@ -1,0 +1,89 @@
+diff -r 37e4af83392e -r 55e92368bcd7 help/opers/cmode
+--- a/help/opers/cmode	Thu Nov 18 15:50:05 2010 -0500
++++ b/help/opers/cmode	Fri Nov 19 22:55:54 2010 -0500
+@@ -33,8 +33,6 @@
+      +D     - Disable CTCP ACTION. All CTCP ACTIONs to the channel will
+               be blocked.
+      +T     - Disable notice. All notices to the channel are disallowed.
++     +E     - No kicks. Chanops will not be able to use /kick on this
++              channel.
+      +N     - No nickchanges. People on the channel will not be able to
+               change nick.
+      +G     - Block messages in all caps. Messages that are more than
+diff -r 37e4af83392e -r 55e92368bcd7 help/users/cmode
+--- a/help/users/cmode	Thu Nov 18 15:50:05 2010 -0500
++++ b/help/users/cmode	Fri Nov 19 22:55:54 2010 -0500
+@@ -33,8 +33,6 @@
+      +D     - Disable CTCP ACTION. All CTCP ACTIONs to the channel will
+               be blocked.
+      +T     - Disable notice. All notices to the channel are disallowed.
++     +E     - No kicks. Chanops will not be able to use /kick on this
++              channel.
+      +N     - No nickchanges. People on the channel will not be able to
+               change nick.
+      +G     - Block messages in all caps. Messages that are more than
+diff -r 37e4af83392e -r 55e92368bcd7 include/channel.h
+--- a/include/channel.h	Thu Nov 18 15:50:05 2010 -0500
++++ b/include/channel.h	Fri Nov 19 22:55:54 2010 -0500
+@@ -183,7 +183,6 @@
+ #define MODE_NOCTCP     0x8000  /* Block CTCPs directed to this channel */
+ #define MODE_NONOTICE	0x10000	/* Block notices directed to this channel */
+ #define MODE_NOACTION	0x20000 /* Block CTCP ACTION directed to this channel */
++#define MODE_NOKICK	0x40000 /* Disable /kick on this channel */
+ #define MODE_NONICK	0x80000 /* Disable /nick for anyone on this channel */
+ #define MODE_NOCAPS	0x100000 /* Block messages in all capital letters */
+ #define MODE_NOREJOIN	0x200000 /* Block rejoin immediately after kick */
+diff -r 37e4af83392e -r 55e92368bcd7 include/numeric.h
+--- a/include/numeric.h	Thu Nov 18 15:50:05 2010 -0500
++++ b/include/numeric.h	Fri Nov 19 22:55:54 2010 -0500
+@@ -325,8 +325,6 @@
+ 
+ #define ERR_DISABLED         517 /* from ircu */
+ 
++#define ERR_NOKICK           519 /* from old shadow */
++
+ #define ERR_HELPNOTFOUND     524
+ 
+ #define RPL_WHOISSECURE      671 /* Unreal3.2 --nenolod */
+diff -r 37e4af83392e -r 55e92368bcd7 modules/core/m_kick.c
+--- a/modules/core/m_kick.c	Thu Nov 18 15:50:05 2010 -0500
++++ b/modules/core/m_kick.c	Fri Nov 19 22:55:54 2010 -0500
+@@ -165,14 +165,6 @@
+ 			return 0;
+ 		}
+ 
++		if(MyClient(source_p) && chptr->mode.mode & MODE_NOKICK)
++		{
++			sendto_one_numeric(source_p, ERR_NOKICK,
++					form_str(ERR_NOKICK),
++					chptr->chname);
++			return 0;
++		}
++
+ 		if (MyClient(source_p) && chptr->mode.mode & MODE_NOOPERKICK && IsOper(who))
+ 		{
+ 			sendto_realops_snomask(SNO_GENERAL, L_NETWIDE,
+diff -r 37e4af83392e -r 55e92368bcd7 src/chmode.c
+--- a/src/chmode.c	Thu Nov 18 15:50:05 2010 -0500
++++ b/src/chmode.c	Fri Nov 19 22:55:54 2010 -0500
+@@ -1853,7 +1853,7 @@
+   {chm_nosuch,	0 },			/* B */
+   {chm_simple,	MODE_NOCTCP },		/* C */
+   {chm_simple,	MODE_NOACTION },	/* D */
++  {chm_simple,	MODE_NOKICK },		/* E */
+-  {chm_nosuch,	0 },			/* E */
+   {chm_simple,	MODE_FREETARGET },	/* F */
+   {chm_simple,	MODE_NOCAPS },		/* G */
+   {chm_nosuch,	0 },			/* H */
+diff -r 37e4af83392e -r 55e92368bcd7 src/messages.tab
+--- a/src/messages.tab	Thu Nov 18 15:50:05 2010 -0500
++++ b/src/messages.tab	Fri Nov 19 22:55:54 2010 -0500
+@@ -540,7 +540,7 @@
+ /* 516 */	NULL,
+ /* 517 ERR_DISABLED */		"%s :This command has been administratively disabled",
+ /* 518 */	NULL,
++/* 519 ERR_NOKICK */		"%s :You cannot kick users in this channel because +E is set",
+-/* 519 */	NULL,
+ /* 520 */	NULL,
+ /* 521 */	NULL,
+ /* 522 */	NULL,

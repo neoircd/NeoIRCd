@@ -1,0 +1,24 @@
+Thank you for downloading NeoIRCd. 
+
+
+*****************************************************+
+To install NeoIRCd you will need:		     |
+						     |
+1, gcc						     |
+2, make						     |
+3, bison					     |
+4, flex						     |
+*****************************************************+
+
+*****************************************************+
+To install run the following commands:		     |
+						     |
+1, ./configure					     |
+2, make						     |
+3, make install 				     |
+Then edit the config file found at $HOME/ircd/etc    |
+*****************************************************+
+
+*****************************************************+
+For support irc.linuxafraid.eu #NeoIRCd              |
+*****************************************************+

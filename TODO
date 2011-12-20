@@ -1,0 +1,6 @@
+/ = in progress, x = done, ? = to be discussed, F = NeoIRCd 0.4 or next releases
+
+0.3:
+[x] Added halfop
+[x] Added Admin(+a)
+[/] Need to add webadmin for the ircd.

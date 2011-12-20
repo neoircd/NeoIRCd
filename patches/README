@@ -1,0 +1,26 @@
+README for the third-party patches to ShadowIRCd
+================================================
+
+This is the third-party patches section of ShadowIRCd.
+These patches were all discluded from going mainline for one reason or
+another. It is important to not that they are *NOT* officially supported
+and your ShadowIRCd will not get any support if you've applied any of them.
+
+You should mv them one directory up and apply them like:
+
+            patch -p1 < patch-name.patch
+
+
+Current Patch List:
+===================
+
+readd_cmode_D.patch:
+Re-adds channelmode +D (no ACTIONs) which was removed (for being stupid and
+pointless) in ShadowIRCd 7.0. It is not readded to disabledmodes because if
+you're applying the patch, you obviously want the feature.
+
+
+readd_cmode_E.patch:
+Re-adds channelmode +E (no KICKs) which was removed (for being stupid and
+pointless) in ShadowIRCd 7.0. It is not readded to disabledmodes because if
+you're applying the patch, you obviously want the feature.
